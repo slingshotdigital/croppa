@@ -87,6 +87,7 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider {
         switch($this->version()) {
             case 4: $this->bootLaravel4(); break;
             case 5: $this->bootLaravel5(); break;
+            case 6: $this->bootLaravel6(); break;
             case -5: $this->bootLumen(); break;
             default: throw new Exception('Unsupported Laravel version');
         }
@@ -125,6 +126,11 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider {
         ], 'croppa');
     }
 
+    public function bootLaravel6() {
+        $this->publishes([
+            __DIR__.'/../../config/config.php' => config_path('croppa.php')
+        ], 'croppa');
+    }
     /**
      * Boot specific logic for Lumen. Load custom croppa config file
      *
