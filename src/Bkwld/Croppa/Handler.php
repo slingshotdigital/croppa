@@ -65,7 +65,7 @@ class Handler extends Controller {
         if ($this->storage->cropsAreRemote()) {
             return new RedirectResponse($this->url->pathToUrl($crop_path), 301);
 
-        // ... or echo the image data to the browser
+            // ... or echo the image data to the browser
         } else {
             $absolute_path = $this->storage->getLocalCropsDirPath() . '/' . $crop_path;
             return new BinaryFileResponse($absolute_path, 200, [
@@ -97,6 +97,27 @@ class Handler extends Controller {
         if (!$params = $this->url->parse($request_path)) return;
         list($path, $width, $height, $options) = $params;
 
+
+        $isWebp = false;
+        if(!empty($this->config['cwebp_path'])) {
+            $oldpath = $path;
+            if(substr($oldpath, -5) === '.webp') {
+                $extensions = ['.webp', '.jpg', '.jpeg', '.png'];
+                $srcDisk = $this->storage->getSrcDisk();
+                foreach ($extensions as $extension) {
+                    $newPath = str_replace('.webp', $extension, $path);
+                    if($srcDisk->has($newPath)) {
+                        $fullExtension = $extension;
+                        $isWebp = true;
+                        $path = $newPath;
+                        break;
+                    }
+                }
+            }
+        }
+
+
+
         // Check if there are too many crops already
         if ($this->storage->tooManyCrops($path)) throw new Exception('Croppa: Max crops');
 
@@ -116,6 +137,11 @@ class Handler extends Controller {
             $image->process($width, $height, $options)->get()
         );
 
+        if ($isWebp) {
+            $cropWebPath = str_replace($fullExtension, '.webp', $crop_path);
+            shell_exec($this->config['cwebp_path']. ' -q ' . $this->config['cwebp_quality'] . ' ' . $crop_path . ' -o ' . $cropWebPath);
+            $crop_path = $cropWebPath;
+        }
         // Return the paht to the crop, relative to the storage disk
         return $crop_path;
     }
@@ -137,7 +163,8 @@ class Handler extends Controller {
                 return 'image/gif';
             case 'png':
                 return 'image/png';
+            case 'webp':
+                return 'image/webp';
         }
     }
-
 }
