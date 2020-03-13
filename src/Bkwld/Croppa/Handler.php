@@ -138,7 +138,7 @@ class Handler extends Controller {
         );
 
         if ($isWebp) {
-            $cropWebPath = str_replace($fullExtension, '.webp', $crop_path);
+            $cropWebPath = $crop_path . '.webp';
             shell_exec($this->config['cwebp_path']. ' -q ' . $this->config['cwebp_quality'] . ' ' . $crop_path . ' -o ' . $cropWebPath);
             $crop_path = $cropWebPath;
         }
