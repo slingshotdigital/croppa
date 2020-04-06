@@ -6,6 +6,7 @@ use Illuminate\Routing\Controller;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Symfony\Component\Process\Process;
 
 /**
  * Handle a Croppa-style request, forwarding the actual work onto other classes.
@@ -81,42 +82,21 @@ class Handler extends Controller {
      * @param string $request_path The `Request::path()`
      * @return string The path, relative to the storage disk, to the crop
      */
-    public function render($request_path) {
+    public function render($originalRequestPath) {
 
         // Get crop path relative to it's dir
-        $crop_path = $this->url->relativePath($request_path);
+        $crop_path = $this->url->relativePath($originalRequestPath);
 
-        // If the crops_dir is a remote disk and if the crop has already been
-        // created.  If it has, just return that path.
-        if ($this->storage->cropExists($crop_path)) {
-            return $crop_path;
+        $isWebp = false;
+        if(substr($crop_path, -5) === '.webp' && !empty($this->config['cwebp_path'])) {
+            $crop_path = str_replace('.webp', '', $crop_path);
+            $request_path = str_replace('.webp', '', $originalRequestPath);
+            $isWebp = true;
         }
-
         // Parse the path.  In the case there is an error (the pattern on the route
         // SHOULD have caught all errors with the pattern) just return
         if (!$params = $this->url->parse($request_path)) return;
         list($path, $width, $height, $options) = $params;
-
-
-        $isWebp = false;
-        if(!empty($this->config['cwebp_path'])) {
-            $oldpath = $path;
-            if(substr($oldpath, -5) === '.webp') {
-                $extensions = ['.webp', '.jpg', '.jpeg', '.png'];
-                $srcDisk = $this->storage->getSrcDisk();
-                foreach ($extensions as $extension) {
-                    $newPath = str_replace('.webp', $extension, $path);
-                    if($srcDisk->has($newPath)) {
-                        $fullExtension = $extension;
-                        $isWebp = true;
-                        $path = $newPath;
-                        break;
-                    }
-                }
-            }
-        }
-
-
 
         // Check if there are too many crops already
         if ($this->storage->tooManyCrops($path)) throw new Exception('Croppa: Max crops');
@@ -126,20 +106,38 @@ class Handler extends Controller {
             ini_set('memory_limit', $this->config['memory_limit']);
         }
 
-        // Build a new image using fetched image data
-        $image = new Image(
-            $this->storage->readSrc($path),
-            $this->url->phpThumbConfig($options)
-        );
+        if(!$this->storage->cropExists($crop_path)) {
+            // Build a new image using fetched image data
+            $image = new Image(
+                $this->storage->readSrc($path),
+                $this->url->phpThumbConfig($options)
+            );
 
-        // Process the image and write its data to disk
-        $this->storage->writeCrop($crop_path,
-            $image->process($width, $height, $options)->get()
-        );
+            // Process the image and write its data to disk
+            $this->storage->writeCrop($crop_path,
+                $image->process($width, $height, $options)->get()
+            );
+        }
+
 
         if ($isWebp) {
             $cropWebPath = $crop_path . '.webp';
-            shell_exec($this->config['cwebp_path']. ' -q ' . $this->config['cwebp_quality'] . ' ' . $crop_path . ' -o ' . $cropWebPath);
+
+            $process = new Process(
+                implode(' ', [
+                    $this->config['cwebp_path'],
+                    '-q',
+                    $this->config['cwebp_quality'],
+                    $crop_path,
+                    '-o',
+                    $cropWebPath
+                ]),
+                $this->storage->getLocalCropsDirPath()
+            );
+
+            $process->start();
+            $process->wait();
+
             $crop_path = $cropWebPath;
         }
         // Return the paht to the crop, relative to the storage disk

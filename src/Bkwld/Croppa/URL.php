@@ -11,7 +11,7 @@ class URL {
      *
      * @return string
      */
-    const PATTERN = '(.+)-([0-9_]+)x([0-9_]+)(-[0-9a-zA-Z(),\-._]+)*\.(jpg|jpeg|png|gif|webp|JPG|JPEG|PNG|GIF|WEBP)$';
+    const PATTERN = '(.+)-([0-9_]+)x([0-9_]+)(-[0-9a-zA-Z(),\-._]+)*(\.(jpg|jpeg|png|gif|webp|JPG|JPEG|PNG|GIF|WEBP)){1,2}$';
 
     /**
      * Croppa general configuration
@@ -141,7 +141,7 @@ class URL {
     public function parse($request) {
         if (!preg_match('#'.self::PATTERN.'#', $request, $matches)) return false;
         return [
-            $this->relativePath($matches[1].'.'.$matches[5]), // Path
+            $this->relativePath($matches[1].'.'.$matches[6]), // Path
             $matches[2] == '_' ? null : (int) $matches[2],    // Width
             $matches[3] == '_' ? null : (int) $matches[3],    // Height
             $this->options($matches[4]),                      // Options
