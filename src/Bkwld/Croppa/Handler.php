@@ -86,6 +86,7 @@ class Handler extends Controller {
 
         // Get crop path relative to it's dir
         $crop_path = $this->url->relativePath($originalRequestPath);
+        $request_path = $originalRequestPath;
 
         $isWebp = false;
         if(substr($crop_path, -5) === '.webp' && !empty($this->config['cwebp_path'])) {
@@ -128,9 +129,9 @@ class Handler extends Controller {
                     $this->config['cwebp_path'],
                     '-q',
                     $this->config['cwebp_quality'],
-                    $crop_path,
+                    './' . $crop_path,
                     '-o',
-                    $cropWebPath
+                    './' . $cropWebPath
                 ]),
                 $this->storage->getLocalCropsDirPath()
             );
