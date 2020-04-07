@@ -136,8 +136,11 @@ class Handler extends Controller {
                 $this->storage->getLocalCropsDirPath()
             );
 
-            $process->start();
-            $process->wait();
+            $statusCode = $process->run();
+            if($statusCode !== 0) {
+                // Do nothing. Cant Log error
+            }
+
 
             $crop_path = $cropWebPath;
         }
